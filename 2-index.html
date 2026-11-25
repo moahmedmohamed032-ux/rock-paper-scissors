@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rock Paper Scissors</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --bg-soft: #161b22;
+    --card: #1a2230;
+    --border: #28323f;
+    --text: #e6edf3;
+    --muted: #9aa7b4;
+    --accent: #58a6ff;
+    --accent-soft: rgba(88, 166, 255, 0.12);
+    --green: #3fb950;
+    --red: #f85149;
+    --yellow: #d29922;
+    --radius: 14px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex; flex-direction: column;
+  }
+  .container { max-width: 720px; margin: 0 auto; padding: 0 20px; width: 100%; }
+
+  header { text-align: center; padding: 48px 0 8px; }
+  header .eyebrow {
+    display: inline-block;
+    font-size: 0.75rem; font-weight: 600; letter-spacing: 1.5px; text-transform: uppercase;
+    color: var(--accent); background: var(--accent-soft);
+    border: 1px solid rgba(88, 166, 255, 0.3);
+    padding: 5px 14px; border-radius: 999px; margin-bottom: 16px;
+  }
+  header h1 { font-size: clamp(1.8rem, 5vw, 2.6rem); font-weight: 800; letter-spacing: -0.5px; }
+  header h1 span { color: var(--accent); }
+  header p { color: var(--muted); margin-top: 8px; font-size: 0.95rem; }
+
+  main { flex: 1; padding: 24px 0 48px; }
+
+  /* Scoreboard */
+  .scoreboard {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 14px;
+    margin: 28px 0;
+  }
+  .score-box {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    text-align: center; padding: 16px 8px;
+  }
+  .score-box .num { font-size: 1.9rem; font-weight: 800; }
+  .score-box .lbl { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  #score-player { color: var(--green); }
+  #score-computer { color: var(--red); }
+  #score-draws { color: var(--yellow); }
+
+  /* Arena: the two chosen hands face each other */
+  .arena {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    display: grid; grid-template-columns: 1fr auto 1fr; align-items: center;
+    padding: 28px 20px; margin-bottom: 20px; gap: 8px;
+  }
+  .hand { text-align: center; }
+  .hand .emoji {
+    font-size: clamp(3rem, 12vw, 4.5rem); display: inline-block; line-height: 1;
+    transition: transform 0.2s;
+  }
+  .hand .who { font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; margin-top: 10px; }
+  .hand.player .emoji { transform: scaleX(-1); } /* face the opponent */
+  .vs { font-weight: 800; color: var(--muted); font-size: 0.9rem; }
+
+  /* Shake animation before the reveal */
+  .shaking .emoji { animation: shake 0.45s ease-in-out 2; }
+  @keyframes shake {
+    0%, 100% { transform: translateY(0) scaleX(var(--flip, 1)); }
+    50%      { transform: translateY(-18px) scaleX(var(--flip, 1)); }
+  }
+  .hand.player { --flip: -1; }
+
+  /* Result banner */
+  .result {
+    text-align: center; font-size: 1.25rem; font-weight: 800;
+    min-height: 2.2rem; margin-bottom: 20px;
+    transition: color 0.2s;
+  }
+  .result.win  { color: var(--green); }
+  .result.lose { color: var(--red); }
+  .result.draw { color: var(--yellow); }
+
+  /* Choice buttons */
+  .choices { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-bottom: 28px; }
+  .choice-btn {
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px 8px; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; gap: 6px;
+    font: inherit; color: var(--text);
+    transition: border-color 0.2s, transform 0.15s, background 0.2s;
+  }
+  .choice-btn:hover:not(:disabled) { border-color: var(--accent); transform: translateY(-3px); background: var(--accent-soft); }
+  .choice-btn:disabled { opacity: 0.45; cursor: wait; }
+  .choice-btn .pick { font-size: 2rem; line-height: 1; }
+  .choice-btn .name { font-size: 0.85rem; font-weight: 600; }
+
+  /* Round history */
+  .history {
+    background: var(--card); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 20px 22px;
+  }
+  .history h2 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 1.2px; color: var(--muted); margin-bottom: 12px; }
+  .history ul { list-style: none; max-height: 190px; overflow-y: auto; display: grid; gap: 6px; }
+  .history li {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg-soft); border: 1px solid var(--border); border-radius: 8px;
+    padding: 8px 14px; font-size: 0.85rem;
+    animation: slideIn 0.25s ease-out;
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(-6px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .history .outcome { font-weight: 700; }
+  .history .outcome.win  { color: var(--green); }
+  .history .outcome.lose { color: var(--red); }
+  .history .outcome.draw { color: var(--yellow); }
+  .history .empty { color: var(--muted); background: none; border: none; justify-content: center; }
+
+  .reset-btn {
+    display: block; margin: 24px auto 0;
+    background: none; border: 1px solid var(--border); color: var(--muted);
+    font: inherit; font-size: 0.88rem; font-weight: 500;
+    padding: 10px 24px; border-radius: 10px; cursor: pointer;
+    transition: color 0.2s, border-color 0.2s;
+  }
+  .reset-btn:hover { color: var(--red); border-color: var(--red); }
+
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 22px 0; text-align: center;
+    color: var(--muted); font-size: 0.82rem;
+  }
+
+  @media (max-width: 480px) {
+    .scoreboard { gap: 8px; }
+    .score-box .num { font-size: 1.5rem; }
+    .choices { gap: 8px; }
+    .choice-btn { padding: 14px 4px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="eyebrow">Vanilla JS Game</div>
+  <h1>Rock <span>Paper</span> Scissors</h1>
+  <p>You against the computer. First to brag wins.</p>
+</header>
+
+<main class="container">
+
+  <div class="scoreboard">
+    <div class="score-box"><div class="num" id="score-player">0</div><div class="lbl">You</div></div>
+    <div class="score-box"><div class="num" id="score-draws">0</div><div class="lbl">Draws</div></div>
+    <div class="score-box"><div class="num" id="score-computer">0</div><div class="lbl">Computer</div></div>
+  </div>
+
+  <div class="arena" id="arena">
+    <div class="hand player">
+      <span class="emoji" id="player-hand">&#9995;</span>
+      <div class="who">You</div>
+    </div>
+    <div class="vs">VS</div>
+    <div class="hand computer">
+      <span class="emoji" id="computer-hand">&#9995;</span>
+      <div class="who">Computer</div>
+    </div>
+  </div>
+
+  <div class="result" id="result">Pick your move to start</div>
+
+  <div class="choices">
+    <button class="choice-btn" data-choice="1"><span class="pick">&#9994;</span><span class="name">Rock</span></button>
+    <button class="choice-btn" data-choice="2"><span class="pick">&#9995;</span><span class="name">Paper</span></button>
+    <button class="choice-btn" data-choice="3"><span class="pick">&#9996;</span><span class="name">Scissors</span></button>
+  </div>
+
+  <div class="history">
+    <h2>Round History</h2>
+    <ul id="history-list">
+      <li class="empty">No rounds yet</li>
+    </ul>
+  </div>
+
+  <button class="reset-btn" id="reset-btn">Reset game</button>
+
+</main>
+
+<footer>A demo project by Ahmed Mohamed. Built with vanilla HTML, CSS, and JavaScript.</footer>
+
+<script>
+  // Game choices are numeric, the classic way: 1 = rock, 2 = paper, 3 = scissors.
+  const ROCK = 1, PAPER = 2, SCISSORS = 3;
+
+  // Result codes returned by getResult().
+  const WIN = 1, LOSE = 2, DRAW = 3;
+
+  const state = { player: 0, computer: 0, draws: 0, round: 0, busy: false };
+
+  const playerHand = document.getElementById("player-hand");
+  const computerHand = document.getElementById("computer-hand");
+  const arena = document.getElementById("arena");
+  const resultEl = document.getElementById("result");
+  const historyList = document.getElementById("history-list");
+  const choiceButtons = document.querySelectorAll(".choice-btn");
+
+  // Emoji + name for each numeric choice.
+  function getChoiceEmoji(choice) {
+    switch (choice) {
+      case ROCK:     return "✊";
+      case PAPER:    return "✋";
+      case SCISSORS: return "✌️";
+    }
+  }
+
+  function getChoiceName(choice) {
+    switch (choice) {
+      case ROCK:     return "Rock";
+      case PAPER:    return "Paper";
+      case SCISSORS: return "Scissors";
+    }
+  }
+
+  // Decide the round. The computer picks 1-3 at random, then a switch on the
+  // player's choice says who wins: rock beats scissors, paper beats rock,
+  // scissors beat paper.
+  function getResult(player, computer) {
+    if (player === computer) return DRAW;
+
+    switch (player) {
+      case ROCK:
+        return computer === SCISSORS ? WIN : LOSE;
+      case PAPER:
+        return computer === ROCK ? WIN : LOSE;
+      case SCISSORS:
+        return computer === PAPER ? WIN : LOSE;
+    }
+  }
+
+  function playRound(playerChoice) {
+    if (state.busy) return; // ignore clicks while the hands are shaking
+    state.busy = true;
+    setButtonsEnabled(false);
+
+    const computerChoice = Math.floor(Math.random() * 3) + 1; // 1, 2, or 3
+
+    // Shake both fists, then reveal the real picks.
+    playerHand.textContent = "✊";
+    computerHand.textContent = "✊";
+    arena.classList.add("shaking");
+    resultEl.className = "result";
+    resultEl.textContent = "...";
+
+    setTimeout(() => {
+      arena.classList.remove("shaking");
+      playerHand.textContent = getChoiceEmoji(playerChoice);
+      computerHand.textContent = getChoiceEmoji(computerChoice);
+
+      const result = getResult(playerChoice, computerChoice);
+      updateScore(result);
+      showResult(result, playerChoice, computerChoice);
+      addHistoryRow(result, playerChoice, computerChoice);
+
+      state.busy = false;
+      setButtonsEnabled(true);
+    }, 950);
+  }
+
+  function updateScore(result) {
+    switch (result) {
+      case WIN:  state.player++;   break;
+      case LOSE: state.computer++; break;
+      case DRAW: state.draws++;    break;
+    }
+    document.getElementById("score-player").textContent = state.player;
+    document.getElementById("score-computer").textContent = state.computer;
+    document.getElementById("score-draws").textContent = state.draws;
+  }
+
+  function showResult(result, playerChoice, computerChoice) {
+    switch (result) {
+      case WIN:
+        resultEl.textContent = `You win! ${getChoiceName(playerChoice)} beats ${getChoiceName(computerChoice)}`;
+        resultEl.classList.add("win");
+        break;
+      case LOSE:
+        resultEl.textContent = `You lose - ${getChoiceName(computerChoice)} beats ${getChoiceName(playerChoice)}`;
+        resultEl.classList.add("lose");
+        break;
+      case DRAW:
+        resultEl.textContent = `Draw - you both picked ${getChoiceName(playerChoice)}`;
+        resultEl.classList.add("draw");
+        break;
+    }
+  }
+
+  function addHistoryRow(result, playerChoice, computerChoice) {
+    state.round++;
+    const placeholder = historyList.querySelector(".empty");
+    if (placeholder) placeholder.remove();
+
+    let outcomeText, outcomeClass;
+    switch (result) {
+      case WIN:  outcomeText = "Win";  outcomeClass = "win";  break;
+      case LOSE: outcomeText = "Lose"; outcomeClass = "lose"; break;
+      case DRAW: outcomeText = "Draw"; outcomeClass = "draw"; break;
+    }
+
+    const row = document.createElement("li");
+    row.innerHTML =
+      `<span>#${state.round} &nbsp;${getChoiceEmoji(playerChoice)} vs ${getChoiceEmoji(computerChoice)}</span>` +
+      `<span class="outcome ${outcomeClass}">${outcomeText}</span>`;
+    historyList.prepend(row); // newest round on top
+  }
+
+  function setButtonsEnabled(enabled) {
+    choiceButtons.forEach(btn => btn.disabled = !enabled);
+  }
+
+  function resetGame() {
+    state.player = 0;
+    state.computer = 0;
+    state.draws = 0;
+    state.round = 0;
+    document.getElementById("score-player").textContent = "0";
+    document.getElementById("score-computer").textContent = "0";
+    document.getElementById("score-draws").textContent = "0";
+    playerHand.textContent = "✋";
+    computerHand.textContent = "✋";
+    resultEl.className = "result";
+    resultEl.textContent = "Pick your move to start";
+    historyList.innerHTML = '<li class="empty">No rounds yet</li>';
+  }
+
+  choiceButtons.forEach(btn => {
+    btn.addEventListener("click", () => playRound(Number(btn.dataset.choice)));
+  });
+  document.getElementById("reset-btn").addEventListener("click", resetGame);
+</script>
+
+</body>
+</html>
